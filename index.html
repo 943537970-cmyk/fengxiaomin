@@ -44,12 +44,12 @@
       padding: 16px;
     }
 
-    /* 开场彩虹大字 - 移动端适配 */
+    /* 开场彩虹大字 - 移动端适配 - 增加地中海蓝色底纹 */
     .rainbow-big {
       font-size: clamp(36px, 10vw, 52px);
       font-weight: 900;
       line-height: 1.3;
-      text-shadow: 0 0 25px #fff9c0;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
       background: linear-gradient(145deg, #ff7b7b, #ffb347, #ffeb99, #7effc0, #7eb0ff, #d07eff);
       -webkit-background-clip: text;
       background-clip: text;
@@ -58,6 +58,14 @@
       animation: gentleGlow 3s infinite;
       max-width: 95%;
       word-break: break-word;
+      /* 地中海蓝色底纹 */
+      background-color: #1e4d7c;
+      background-blend-mode: overlay;
+      padding: 15px 25px;
+      border-radius: 60px;
+      display: inline-block;
+      box-shadow: 0 10px 25px rgba(0, 30, 60, 0.7);
+      border: 2px solid rgba(255, 255, 255, 0.3);
     }
 
     @keyframes gentleGlow {
@@ -200,28 +208,9 @@
       transform: scale(0.95);
     }
 
-    /* 能量面板 - 移动端适配 */
+    /* 能量面板 - 已移除（左上角空白） */
     #stats {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      font-size: clamp(16px, 4vw, 22px);
-      background: rgba(0, 0, 0, 0.6);
-      padding: 8px 16px;
-      border-radius: 30px;
-      backdrop-filter: blur(6px);
-      border: 2px solid #fff3b0;
-      color: #fff3b0;
-      font-weight: bold;
-      z-index: 15;
-      box-shadow: 0 0 20px rgba(0,0,0,0.7);
-      transition: opacity 0.3s ease;
-    }
-
-    #stats span {
-      color: #ffe078;
-      font-size: clamp(18px, 4.5vw, 26px);
-      margin: 0 4px;
+      display: none;
     }
 
     /* 导航按钮 - 移动端适配 */
@@ -298,15 +287,18 @@
       .nav-btn {
         padding: 8px 10px;
       }
+      .rainbow-big {
+        padding: 12px 20px;
+      }
     }
   </style>
 </head>
 <body>
 
 <div id="game">
-  <!-- 舒缓儿童背景音乐 - 换成更柔和版本 (SoundHelix Song-16 是比较舒缓的钢琴曲) -->
+  <!-- 舒缓儿童背景音乐 - 换成《我和你一样》风格 (使用SoundHelix的钢琴曲替代，因为无法直接使用版权音乐) -->
   <audio id="bgm" loop preload="auto" style="display:none">
-    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-17.mp3" type="audio/mpeg">
   </audio>
 
   <div id="overlay">
@@ -325,9 +317,8 @@
     <div id="special-btn-container"></div>
   </div>
 
-  <!-- 固定统计面板 - 初始隐藏 -->
-  <div id="stats" class="hidden">✨ 能量宝石: <span id="gem-value">0</span>  |  💖 心光: <span id="heart-value">0</span></div>
-  
+  <!-- 能量面板已移除，左上角保持空白 -->
+
   <!-- 导航按钮 - 初始隐藏 -->
   <div id="nav-buttons" class="hidden">
     <button class="nav-btn" id="prev-btn" onclick="prevQuestion()">🌙 上一关</button>
@@ -379,30 +370,81 @@
   ];
   const getBgByIndex = (idx) => bgImages[idx % bgImages.length];
 
-  // ---------- 语音朗读 - 放慢语速，更适合儿童 ----------
+  // ---------- 语音朗读 - 修复移动端兼容性 ----------
   function speakText(txt) {
-    if (!window.speechSynthesis) return;
+    if (!window.speechSynthesis) {
+      console.log('当前浏览器不支持语音朗读');
+      return;
+    }
+    
     try {
+      // 取消任何正在进行的朗读
       window.speechSynthesis.cancel();
+      
+      // 创建新的朗读实例
       const utterance = new SpeechSynthesisUtterance(txt);
       utterance.lang = 'zh-CN';
       utterance.rate = 0.85;      // 稍微放慢，适合儿童
       utterance.pitch = 1.1;
       utterance.volume = 1;
-      speechSynthesis.speak(utterance);
-    } catch (e) {}
+      
+      // 对于移动端，需要确保语音在用户交互后也能正常触发
+      // 这里不做额外处理，因为页面加载时会自动尝试朗读
+      
+      // 开始朗读
+      window.speechSynthesis.speak(utterance);
+      
+      // 对于某些Android设备，可能需要保持语音实例不被回收
+      // 设置一个定时器防止语音被过早中断
+      setTimeout(() => {
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }, 5000);
+      
+    } catch (e) {
+      console.log('语音朗读出错:', e);
+    }
   }
 
-  // ---------- 舒缓背景音乐 (音量调低) ----------
+  // 专门为移动端优化的朗读函数 - 确保在用户交互后也能工作
+  function safeSpeak(txt) {
+    // 如果浏览器不支持，直接返回
+    if (!window.speechSynthesis) return;
+    
+    try {
+      // 确保任何正在进行的朗读被取消
+      window.speechSynthesis.cancel();
+      
+      // 创建一个新的朗读
+      const utterance = new SpeechSynthesisUtterance(txt);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 0.85;
+      utterance.pitch = 1.1;
+      utterance.volume = 1;
+      
+      // 移动端需要这个延迟来确保语音能够正常触发
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+      }, 100);
+    } catch (e) {
+      console.log('移动端语音朗读出错:', e);
+    }
+  }
+
+  // ---------- 鼓励人心的背景音乐 (音量0.1，比之前更小) ----------
   function initAudio() {
     const audio = document.getElementById('bgm');
-    audio.volume = 0.15;  // 轻柔舒适
+    audio.volume = 0.1;  // 非常轻柔
     audio.play().catch(() => {});
   }
+  
+  // 用户首次点击时尝试播放音乐（解决自动播放限制）
   document.addEventListener('click', function once() {
     const audio = document.getElementById('bgm');
     if (audio.paused) {
-      audio.volume = 0.15;
+      audio.volume = 0.1;
       audio.play().catch(() => {});
     }
   }, { once: true });
@@ -1158,8 +1200,7 @@
   const navButtons = document.getElementById('nav-buttons');
 
   function updateStats() {
-    gemSpan.innerText = gem;
-    heartSpan.innerText = heart;
+    // 能量面板已移除，但保留函数以防后续需要
   }
 
   function setBackground(idx) {
@@ -1167,16 +1208,15 @@
   }
 
   function speak(txt) {
-    speakText(txt);
+    // 使用修复移动版的safeSpeak
+    safeSpeak(txt);
   }
 
-  // 显示/隐藏游戏UI（能量面板和导航按钮）
+  // 显示/隐藏游戏UI（导航按钮）
   function setGameUIVisible(visible) {
     if (visible) {
-      statsPanel.classList.remove('hidden');
       navButtons.classList.remove('hidden');
     } else {
-      statsPanel.classList.add('hidden');
       navButtons.classList.add('hidden');
     }
   }
@@ -1206,7 +1246,7 @@
     specialBtnContainer.appendChild(backBtn);
     
     // 语音温柔朗读部分内容
-    speak('冯雨涵你好，当你完成这些问题的时候，姑姑真的为你感到骄傲。你真的是一个特别棒的小女孩。');
+    safeSpeak('冯雨涵你好，当你完成这些问题的时候，姑姑真的为你感到骄傲。你真的是一个特别棒的小女孩。');
   }
 
   // 重写nextQuestion以处理信件逻辑
@@ -1248,7 +1288,7 @@
       // 开场页：隐藏游戏UI
       setGameUIVisible(false);
 
-      // 专属开场页
+      // 专属开场页 - 增加地中海蓝色底纹
       headerDiv.innerHTML = '<div class="rainbow-big">🌈 冯雨涵专属情绪冒险岛 🌈</div>';
       const subGreet = document.createElement('div');
       subGreet.className = 'greeting-message';
@@ -1268,11 +1308,12 @@
       };
       startBtnContainer.appendChild(startBtn);
       
-      // 立即朗读开场白（进入首页后马上开始）
+      // 立即朗读开场白（修复移动端问题）
       if (!hasSpokenOpening) {
+        // 使用safeSpeak并添加延迟确保移动端生效
         setTimeout(() => {
-          speak('冯雨涵你好，这是姑姑针对你的性格优缺点送给你的礼物，希望你能够正确的认识自己，你是一个特别厉害的小朋友哦，加油奥利给！');
-        }, 100); // 稍微延迟100ms确保页面渲染完成
+          safeSpeak('冯雨涵你好，这是姑姑针对你的性格优缺点送给你的礼物，希望你能够正确的认识自己，你是一个特别厉害的小朋友哦，加油奥利给！');
+        }, 300);
         hasSpokenOpening = true;
       }
     } else {
@@ -1292,7 +1333,7 @@
 
           gem += (c.gem || 0);
           heart += (c.heart || 0);
-          updateStats();
+          // 能量值不再显示，但内部仍可记录
           resultDiv.innerText = c.result;
           speak(c.result);
 
@@ -1345,9 +1386,9 @@
     setGameUIVisible(false);
     renderQuestion();
 
-    // 轻柔背景音乐 (音量0.15，舒适)
+    // 鼓励人心的背景音乐 (音量0.1，非常轻柔)
     const audio = document.getElementById('bgm');
-    audio.volume = 0.15;
+    audio.volume = 0.1;
     audio.play().catch(() => {});
   };
 })();
